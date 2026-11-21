@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Google Chrome 3D — Dark Edition</title>
+  <style>
+    /* =====================================================================
+       1. ЗМІННІ КОЛЬОРІВ (ТЕМНА ТЕМА GOOGLE CHROME DARK MODE)
+       ===================================================================== */
+    :root {
+      --bg-void: #0b0c0f;
+      --bg-radial: #161922;
+      --chrome-frame: #141519;
+      --chrome-toolbar: #1e2026;
+      --chrome-omnibox: #121317;
+      --chrome-tab-inactive: #191b20;
+      --chrome-tab-active: #262932;
+      --chrome-tab-hover: #2f3340;
+      --chrome-viewport: #17181d;
+      --chrome-border: rgba(255, 255, 255, 0.08);
+      --chrome-accent: #8ab4f8;
+      --chrome-accent-glow: rgba(138, 180, 248, 0.45);
+      --chrome-purple-glow: rgba(168, 130, 255, 0.25);
+      --text-primary: #e8eaed;
+      --text-secondary: #9aa0a6;
+      --danger: #f28b82;
+      --success: #81c995;
+      --warning: #fdd663;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at 50% 35%, var(--bg-radial) 0%, var(--bg-void) 75%);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 20px;
+      user-select: none;
+    }
+
+    /* Фонова 3D-сітка простору */
+    .space-grid {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(to right, rgba(138, 180, 248, 0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(138, 180, 248, 0.04) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse at center, black 35%, transparent 80%);
+      -webkit-mask-image: radial-gradient(ellipse at center, black 35%, transparent 80%);
+      z-index: 0;
+    }
+
+    /* =====================================================================
+       2. ПАНЕЛЬ КЕРУВАННЯ 3D-КАМЕРОЮ ТА РЕЖИМАМИ
+       ===================================================================== */
+    .camera-hud {
+      position: relative;
+      z-index: 20;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: rgba(20, 21, 25, 0.85);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--chrome-border);
+      padding: 8px 14px;
+      border-radius: 999px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+      margin-bottom: 12px;
+    }
+
+    .hud-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--chrome-accent);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-right: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hud-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--chrome-accent);
+      box-shadow: 0 0 10px var(--chrome-accent);
+    }
+
+    .cam-btn {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-secondary);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .cam-btn:hover {
+      background: rgba(138, 180, 248, 0.14);
+      color: var(--text-primary);
+      border-color: rgba(138, 180, 248, 0.4);
+    }
+
+    .cam-btn.active {
+      background: rgba(138, 180, 248, 0.22);
+      color: #ffffff;
+      border-color: var(--chrome-accent);
+      box-shadow: 0 0 14px rgba(138, 180, 248, 0.3);
+    }
+
+    /* =====================================================================
+       3. 3D-СЦЕНА ТА ОБ'ЄМНИЙ КОРПУС БРАУЗЕРА GOOGLE CHROME
+       ===================================================================== */
+    .scene-3d {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 1120px;
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 1650px;
+      padding: 10px 0;
+    }
+
+    .chrome-window-3d {
+      width: 100%;
+      min-height: 610px;
+      background: var(--chrome-frame);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      transform-style: preserve-3d;
+      transform: rotateX(6deg) rotateY(-4deg) translateZ(0px);
+      transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease;
+      box-shadow:
+        -14px 24px 60px rgba(0, 0, 0, 0.88),
+        0 0 50px rgba(138, 180, 248, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .chrome-window-3d.dragging {
+      transition: none;
+    }
+
+    /* Об'ємна бічна та нижня грань корпусу браузера (імітація товщини в 3D) */
+    .chrome-window-3d::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 16px;
+      background: #0a0b0e;
+      transform: translateZ(-22px);
+      box-shadow: 0 35px 80px rgba(0, 0, 0, 0.95);
+      pointer-events: none;
+    }
+
+    /* =====================================================================
+       4. ВЕРХНЯ ПАНЕЛЬ ВКЛАДОК ІЗ 3D-ПОВОРОТОМ, ЗБІЛЬШЕННЯМ ТА ПІДСВІТКОЮ
+       ===================================================================== */
+    .chrome-tabstrip {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      padding: 12px 14px 0 14px;
+      background: linear-gradient(180deg, #101115 0%, #16181d 100%);
+      border-radius: 16px 16px 0 0;
+      transform-style: preserve-3d;
+      transform: translateZ(16px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      min-height: 52px;
+    }
+
+    /* Кнопки керування вікном (закрити, згорнути, розгорнути) */
+    .window-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 10px 13px 4px;
+      transform: translateZ(6px);
+    }
+
+    .win-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.2s ease, filter 0.2s ease;
+    }
+
+    .win-dot:hover {
+      transform: scale(1.25);
+      filter: brightness(1.2);
+    }
+
+    .win-dot.close { background: #ff5f56; box-shadow: 0 0 8px rgba(255, 95, 86, 0.4); }
+    .win-dot.minimize { background: #ffbd2e; box-shadow: 0 0 8px rgba(255, 189, 46, 0.4); }
+    .win-dot.maximize { background: #27c93f; box-shadow: 0 0 8px rgba(39, 201, 63, 0.4); }
+
+    /* Контейнер вкладок із перспективою */
+    .tabs-list {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      flex-grow: 1;
+      overflow-x: auto;
+      overflow-y: visible;
+      padding: 8px 6px 0 6px;
+      scrollbar-width: none;
+      perspective: 900px;
+      transform-style: preserve-3d;
+    }
+
+    .tabs-list::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* ВКЛАДКА CHROME — 3D HOVER ПОВОРОТ, ЗБІЛЬШЕННЯ ТА ПІДСВІТКА */
+    .chrome-tab {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 155px;
+      max-width: 225px;
+      height: 38px;
+      padding: 0 12px;
+      background: var(--chrome-tab-inactive);
+      color: var(--text-secondary);
+      border-radius: 11px 11px 0 0;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-bottom: none;
+      cursor: pointer;
+      transform-style: preserve-3d;
+      transform-origin: center bottom;
+      transform: translateZ(4px) rotateX(0deg) rotateY(0deg) scale(1);
+      transition:
+        transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+        background-color 0.25s ease,
+        box-shadow 0.3s ease,
+        border-color 0.25s ease,
+        color 0.25s ease;
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.35);
+    }
+
+    .chrome-tab.active {
+      background: var(--chrome-tab-active);
+      color: #ffffff;
+      border-color: rgba(138, 180, 248, 0.35);
+      transform: translateZ(14px) scale(1.02);
+      box-shadow:
+        0 -4px 18px rgba(138, 180, 248, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      z-index: 3;
+    }
+
+    /* Головна вимога: при наведенні вкладка повертається під 3D-кутом, підсвічується і збільшується */
+    .chrome-tab:hover {
+      background: linear-gradient(145deg, #2d3240 0%, #232734 100%);
+      color: #ffffff;
+      border-color: var(--chrome-accent);
+      transform: translateZ(34px) rotateX(14deg) rotateY(-12deg) scale(1.09);
+      box-shadow:
+        -8px 14px 28px rgba(0, 0, 0, 0.75),
+        0 0 22px var(--chrome-accent-glow),
+        inset 0 1px 1px rgba(255, 255, 255, 0.35);
+      z-index: 15;
+    }
+
+    .chrome-tab:nth-child(even):hover {
+      transform: translateZ(34px) rotateX(14deg) rotateY(12deg) scale(1.09);
+      box-shadow:
+        8px 14px 28px rgba(0, 0, 0, 0.75),
+        0 0 22px var(--chrome-accent-glow),
+        inset 0 1px 1px rgba(255, 255, 255, 0.35);
+    }
+
+    .tab-favicon {
+      font-size: 14px;
+      flex-shrink: 0;
+      filter: drop-shadow(0 0 4px rgba(138, 180, 248, 0.4));
+    }
+
+    .tab-title {
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex-grow: 1;
+    }
+
+    .tab-close {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 13px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+
+    .tab-close:hover {
+      background: rgba(242, 139, 130, 0.25);
+      color: var(--danger);
+      transform: scale(1.15);
+    }
+
+    /* Кнопка нової вкладки (+) */
+    .new-tab-btn {
+      width: 32px;
+      height: 32px;
+      margin-bottom: 4px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-primary);
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transform: translateZ(10px);
+      transition: all 0.25s ease;
+    }
+
+    .new-tab-btn:hover {
+      background: rgba(138, 180, 248, 0.22);
+      border-color: var(--chrome-accent);
+      box-shadow: 0 0 16px var(--chrome-accent-glow);
+      transform: translateZ(20px) rotate(90deg) scale(1.1);
+    }
+
+    /* =====================================================================
+       5. ПАНЕЛЬ НАВІГАЦІЇ ТА АДРЕСНИЙ РЯДОК (OMNIBOX) У 3D
+       ===================================================================== */
+    .chrome-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      background: var(--chrome-toolbar);
+      border-bottom: 1px solid var(--chrome-border);
+      transform-style: preserve-3d;
+      transform: translateZ(24px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+      z-index: 5;
+    }
+
+    .nav-buttons {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .nav-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease, color 0.2s ease;
+    }
+
+    .nav-btn:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.09);
+      color: var(--chrome-accent);
+      transform: translateZ(8px) scale(1.08);
+    }
+
+    .nav-btn:disabled {
+      opacity: 0.32;
+      cursor: not-allowed;
+    }
+
+    /* Адресний рядок (Omnibox) */
+    .omnibox-wrapper {
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--chrome-omnibox);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      padding: 6px 14px;
+      transform: translateZ(8px);
+      transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+    }
+
+    .omnibox-wrapper:focus-within {
+      border-color: var(--chrome-accent);
+      box-shadow: 0 0 18px rgba(138, 180, 248, 0.35);
+      transform: translateZ(14px);
+    }
+
+    .lock-icon {
+      font-size: 13px;
+      color: var(--success);
+    }
+
+    .omnibox-input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-size: 13.5px;
+      font-family: inherit;
+    }
+
+    .bookmark-star {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 16px;
+      cursor: pointer;
+      transition: transform 0.2s ease, color 0.2s ease;
+    }
+
+    .bookmark-star.saved {
+      color: var(--warning);
+      text-shadow: 0 0 10px rgba(253, 214, 99, 0.6);
+    }
+
+    .bookmark-star:hover {
+      transform: scale(1.2);
+    }
+
+    /* Панель закладок */
+    .bookmarks-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: #1a1c22;
+      border-bottom: 1px solid var(--chrome-border);
+      transform: translateZ(18px);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .bookmarks-bar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .bm-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid transparent;
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .bm-item:hover {
+      background: rgba(138, 180, 248, 0.14);
+      border-color: rgba(138, 180, 248, 0.35);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    /* =====================================================================
+       6. ОБЛАСТЬ ПЕРЕГЛЯДУ СТОРІНОК (VIEWPORT)
+       ===================================================================== */
+    .chrome-viewport {
+      flex-grow: 1;
+      background: var(--chrome-viewport);
+      border-radius: 0 0 16px 16px;
+      padding: 24px;
+      transform-style: preserve-3d;
+      transform: translateZ(6px);
+      overflow-y: auto;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Нова вкладка Google Search Dark */
+    .ntp-container {
+      max-width: 680px;
+      width: 100%;
+      margin: auto;
+      text-align: center;
+      padding: 16px 0;
+    }
+
+    .google-logo-3d {
+      font-size: 54px;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      margin-bottom: 22px;
+      text-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
+      transform: translateZ(18px);
+    }
+
+    .g-blue { color: #8ab4f8; }
+    .g-red { color: #f28b82; }
+    .g-yellow { color: #fdd663; }
+    .g-green { color: #81c995; }
+
+    .ntp-search-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #24262e;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      padding: 12px 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+      margin-bottom: 32px;
+      transition: all 0.25s ease;
+    }
+
+    .ntp-search-box:focus-within {
+      border-color: var(--chrome-accent);
+      box-shadow: 0 0 25px rgba(138, 180, 248, 0.35);
+      transform: translateY(-2px);
+    }
+
+    .ntp-search-box input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #ffffff;
+      font-size: 15px;
+    }
+
+    .shortcuts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 14px;
+    }
+
+    .shortcut-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 14px;
+      padding: 16px 10px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .shortcut-card:hover {
+      background: rgba(138, 180, 248, 0.14);
+      border-color: var(--chrome-accent);
+      transform: translateY(-4px) scale(1.04);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(138, 180, 248, 0.25);
+    }
+
+    .shortcut-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #282b34;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .shortcut-name {
+      font-size: 12.5px;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    /* Внутрішні сторінки (GitHub, YouTube, Dino Game, 3D Lab) */
+    .web-page-card {
+      background: #1e2027;
+      border: 1px solid var(--chrome-border);
+      border-radius: 14px;
+      padding: 22px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+    }
+
+    .web-page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--chrome-border);
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+    }
+
+    .badge-pill {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(138, 180, 248, 0.16);
+      color: var(--chrome-accent);
+      border: 1px solid rgba(138, 180, 248, 0.35);
+    }
+
+    /* Міні-гра Chrome Dino Dark */
+    .dino-arena {
+      position: relative;
+      width: 100%;
+      height: 190px;
+      background: #121318;
+      border: 1px solid rgba(138, 180, 248, 0.25);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-top: 14px;
+      cursor: pointer;
+    }
+
+    .dino-ground {
+      position: absolute;
+      bottom: 24px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: rgba(138, 180, 248, 0.4);
+    }
+
+    .dino-player {
+      position: absolute;
+      bottom: 26px;
+      left: 44px;
+      font-size: 32px;
+      line-height: 1;
+      transition: transform 0.08s linear;
+    }
+
+    .dino-cactus {
+      position: absolute;
+      bottom: 26px;
+      right: -30px;
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    /* =====================================================================
+       7. ЗИМОВИЙ СНІГОПАД, МІСЯЦЬ ТА ЧОРТИК, ЩО ГОЙДАЄТЬСЯ І МЕКАЄ
+       ===================================================================== */
+    #snow-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .night-sky-actor {
+      position: fixed;
+      top: 56px;
+      right: 4%;
+      width: 170px;
+      height: 170px;
+      z-index: 25;
+      cursor: crosshair;
+      transform-style: preserve-3d;
+      filter: drop-shadow(0 0 24px rgba(253, 214, 99, 0.28));
+      transition: transform 0.25s ease;
+    }
+
+    .night-sky-actor:hover {
+      transform: scale(1.06);
+    }
+
+    /* Гойдання місяця разом із чортиком */
+    @keyframes moonSwing {
+      0%, 100% { transform: rotate(-11deg) translateY(0px); }
+      50% { transform: rotate(12deg) translateY(-6px); }
+    }
+
+    .moon-swing-group {
+      width: 100%;
+      height: 100%;
+      transform-origin: 50% 15%;
+      animation: moonSwing 3.8s ease-in-out infinite;
+      position: relative;
+    }
+
+    /* Хвостик та вушка чортика погойдуються в такт */
+    @keyframes tailWag {
+      0%, 100% { transform: rotate(-14deg); }
+      50% { transform: rotate(18deg); }
+    }
+
+    .devil-tail {
+      transform-origin: 72px 86px;
+      animation: tailWag 1.1s ease-in-out infinite;
+    }
+
+    /* Анімація падіння чортика після влучання сніжкою */
+    .devil-entity {
+      transition: opacity 0.3s ease;
+    }
+
+    .devil-entity.falling {
+      animation: devilTumbleFall 2.3s cubic-bezier(0.32, 0, 0.67, 0.2) forwards;
+    }
+
+    @keyframes devilTumbleFall {
+      0% {
+        transform: translate(0, 0) rotate(0deg) scale(1);
+        opacity: 1;
+      }
+      18% {
+        transform: translate(-18px, -24px) rotate(-45deg) scale(1.12);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(-140px, 780px) rotate(680deg) scale(0.75);
+        opacity: 0;
+      }
+    }
+
+    /* Вигук "Ме-е-е!" */
+    .bleat-bubble {
+      position: absolute;
+      top: 18px;
+      left: -68px;
+      background: #1e2028;
+      color: #fdd663;
+      border: 1.5px solid #fdd663;
+      border-radius: 14px;
+      padding: 5px 11px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.75), 0 0 14px rgba(253, 214, 99, 0.45);
+      opacity: 0;
+      transform: scale(0.6) translateY(8px);
+      pointer-events: none;
+      white-space: nowrap;
+      transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      z-index: 30;
+    }
+
+    .bleat-bubble.visible {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+
+    /* Сніжка, що летить */
+    .snowball-projectile {
+      position: fixed;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 32% 30%, #ffffff 0%, #dbeafe 65%, #93c5fd 100%);
+      box-shadow: 0 0 14px rgba(255, 255, 255, 0.9), 0 4px 10px rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+      z-index: 60;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Сніговий сплеск при ударі */
+    @keyframes snowSplashAnim {
+      0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; }
+    }
+
+    .snow-splash {
+      position: fixed;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 3px dashed #ffffff;
+      box-shadow: 0 0 18px #ffffff;
+      pointer-events: none;
+      z-index: 61;
+      animation: snowSplashAnim 0.45s ease-out forwards;
+    }
+
+    /* Лічильник влучань сніжками в HUD */
+    .snow-score-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: rgba(253, 214, 99, 0.14);
+      border: 1px solid rgba(253, 214, 99, 0.4);
+      color: #fdd663;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* Адаптивність */
+    @media (max-width: 680px) {
+      .chrome-window-3d {
+        min-height: 540px;
+      }
+      .chrome-tab {
+        min-width: 125px;
+      }
+      .google-logo-3d {
+        font-size: 40px;
+      }
+      .night-sky-actor {
+        width: 125px;
+        height: 125px;
+        top: 66px;
+        right: 2%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="space-grid"></div>
+  <canvas id="snow-canvas"></canvas>
+
+  <!-- Місяць із чортиком у нічному небі (клік по небу або чортику кидає сніжку!) -->
+  <div class="night-sky-actor" id="night-sky-actor" title="Клікни, щоб кинути сніжку в чортика на місяці!">
+    <div class="bleat-bubble" id="bleat-bubble">🐐 Ме-е-е-е!</div>
+    <div class="moon-swing-group" id="moon-swing-group">
+      <svg viewBox="0 0 180 180" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="moonGrad" cx="35%" cy="30%" r="70%">
+            <stop offset="0%" stop-color="#fffbeb" />
+            <stop offset="55%" stop-color="#fde68a" />
+            <stop offset="100%" stop-color="#f59e0b" />
+          </radialGradient>
+        </defs>
+
+        <!-- Півмісяць -->
+        <path d="M115 18 C65 24, 34 68, 42 118 C49 156, 86 174, 126 164 C96 156, 76 128, 76 92 C76 56, 94 30, 115 18 Z"
+              fill="url(#moonGrad)" stroke="#fef3c7" stroke-width="1.5" />
+        <!-- Кратери на місяці -->
+        <circle cx="62" cy="84" r="5" fill="rgba(217, 119, 6, 0.25)" />
+        <circle cx="56" cy="112" r="7" fill="rgba(217, 119, 6, 0.22)" />
+        <circle cx="75" cy="138" r="4" fill="rgba(217, 119, 6, 0.25)" />
+
+        <!-- Чортик, що сидить на вигині місяця -->
+        <g class="devil-entity" id="devil-entity">
+          <!-- Хвостик з пензликом -->
+          <path class="devil-tail" d="M72 86 Q 52 74 56 58 Q 58 50 64 53" fill="none" stroke="#18181b" stroke-width="3.2" stroke-linecap="round"/>
+          <polygon class="devil-tail" points="64,49 69,55 61,56" fill="#ef4444"/>
+
+          <!-- Ніжки з копитцями, що звисають з місяця -->
+          <path d="M84 94 L 94 112" stroke="#18181b" stroke-width="5.5" stroke-linecap="round"/>
+          <path d="M93 91 L 105 107" stroke="#18181b" stroke-width="5.5" stroke-linecap="round"/>
+          <!-- Копитця -->
+          <ellipse cx="95" cy="114" rx="4.5" ry="3" fill="#52525b"/>
+          <ellipse cx="106" cy="109" rx="4.5" ry="3" fill="#52525b"/>
+
+          <!-- Тулуб чортика -->
+          <ellipse cx="83" cy="82" rx="13" ry="15" fill="#18181b" stroke="#3f3f46" stroke-width="1.2"/>
+
+          <!-- Лапки, що тримаються за місяць -->
+          <path d="M76 76 Q 66 72 67 64" fill="none" stroke="#18181b" stroke-width="4.5" stroke-linecap="round"/>
+          <path d="M90 77 Q 100 74 103 82" fill="none" stroke="#18181b" stroke-width="4.5" stroke-linecap="round"/>
+
+          <!-- Голова -->
+          <circle cx="84" cy="60" r="12" fill="#18181b" stroke="#3f3f46" stroke-width="1.2"/>
+
+          <!-- Ріжки -->
+          <path d="M76 51 Q 71 39 77 37 Q 80 43 80 49 Z" fill="#ef4444"/>
+          <path d="M91 51 Q 96 39 90 37 Q 87 43 87 49 Z" fill="#ef4444"/>
+
+          <!-- Вушка -->
+          <polygon points="71,59 65,55 72,64" fill="#27272a"/>
+          <polygon points="96,59 102,55 95,64" fill="#27272a"/>
+
+          <!-- Хитрий п'ятачок та оченята -->
+          <circle cx="80" cy="58" r="2.2" fill="#fde047"/>
+          <circle cx="88" cy="58" r="2.2" fill="#fde047"/>
+          <circle cx="80.5" cy="58" r="1" fill="#09090b"/>
+          <circle cx="88.5" cy="58" r="1" fill="#09090b"/>
+          <ellipse cx="84" cy="63" rx="4" ry="2.6" fill="#f87171"/>
+          <circle cx="82.7" cy="63" r="0.8" fill="#450a0a"/>
+          <circle cx="85.3" cy="63" r="0.8" fill="#450a0a"/>
+          <!-- Хитра посмішка -->
+          <path d="M79 67 Q 84 71 89 67" fill="none" stroke="#fca5a5" stroke-width="1.4" stroke-linecap="round"/>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Верхня панель керування 3D-камерою -->
+  <div class="camera-hud">
+    <span class="hud-label"><span class="hud-dot"></span>3D Камера:</span>
+    <button class="cam-btn active" data-preset="default">Стандартний 3D</button>
+    <button class="cam-btn" data-preset="isometric">Ізометрія</button>
+    <button class="cam-btn" data-preset="deep">Глибокий нахил</button>
+    <button class="cam-btn" data-preset="flat">Фронтальний</button>
+    <button class="cam-btn" id="toggle-tilt-btn">Вільне обертання мишею: УВІМК</button>
+    <span class="snow-score-pill" id="snow-score-pill" title="Клікни по фону або чортику на місяці, щоб кинути сніжку!">
+      ❄️ Збито чортиків: <strong id="devil-hits-count">0</strong>
+    </span>
+  </div>
+
+  <!-- Головна 3D-сцена -->
+  <div class="scene-3d" id="scene-3d">
+    <div class="chrome-window-3d" id="chrome-window">
+
+      <!-- Панель вкладок із 3D-ефектом при наведенні -->
+      <div class="chrome-tabstrip">
+        <div class="window-controls">
+          <button class="win-dot close" title="Скинути сесію" id="reset-session-btn"></button>
+          <button class="win-dot minimize" title="Зменшити масштаб 3D" id="zoom-out-btn"></button>
+          <button class="win-dot maximize" title="Розгорнути / Повернути 3D" id="zoom-in-btn"></button>
+        </div>
+
+        <div class="tabs-list" id="tabs-list">
+          <!-- Вкладки рендеряться динамічно через JS -->
+        </div>
+
+        <button class="new-tab-btn" id="new-tab-btn" title="Нова вкладка (Ctrl+T)">+</button>
+      </div>
+
+      <!-- Панель інструментів та адресний рядок -->
+      <div class="chrome-toolbar">
+        <div class="nav-buttons">
+          <button class="nav-btn" id="btn-back" title="Назад">←</button>
+          <button class="nav-btn" id="btn-forward" title="Вперед">→</button>
+          <button class="nav-btn" id="btn-reload" title="Оновити сторінку">↻</button>
+          <button class="nav-btn" id="btn-home" title="Домашня сторінка">⌂</button>
+        </div>
+
+        <div class="omnibox-wrapper">
+          <span class="lock-icon" title="Захищене з'єднання HTTPS">🔒</span>
+          <input
+            type="text"
+            class="omnibox-input"
+            id="omnibox-input"
+            placeholder="Введіть пошуковий запит Google або URL (напр. github.com, dino, 3d)..."
+            autocomplete="off"
+          />
+          <button class="bookmark-star" id="bookmark-star" title="Додати сторінку в закладки">☆</button>
+        </div>
+      </div>
+
+      <!-- Панель закладок -->
+      <div class="bookmarks-bar" id="bookmarks-bar">
+        <button class="bm-item" data-url="chrome://newtab">🏠 Нова вкладка</button>
+        <button class="bm-item" data-url="https://github.com">🐙 GitHub Dark</button>
+        <button class="bm-item" data-url="https://youtube.com">▶️ YouTube Studio 3D</button>
+        <button class="bm-item" data-url="chrome://dino">🦖 Гра Динозаврик</button>
+        <button class="bm-item" data-url="chrome://3d-lab">🧊 Лабораторія 3D-шарів</button>
+      </div>
+
+      <!-- Область перегляду сторінок -->
+      <main class="chrome-viewport" id="chrome-viewport">
+        <!-- Вміст активної вкладки підставляється через JS -->
+      </main>
+
+    </div>
+  </div>
+
+  <footer style="position: relative; z-index: 20; font-size: 12px; color: #7e8591; text-align: center;">
+    Google Chrome 3D Simulator • Наведіть на вкладки для 3D-повороту • Клікніть по чортику на місяці чи темному небу, щоб кинути сніжку!
+  </footer>
+
+  <script>
+    /**
+     * =========================================================================
+     * 1. МОДЕЛЬ ДАНИХ ТА СТАН БРАУЗЕРА CHROME 3D
+     * =========================================================================
+     */
+    const PAGE_CATALOG = {
+      "chrome://newtab": {
+        title: "Нова вкладка",
+        favicon: "🌐",
+        render: () => `
+          <div class="ntp-container">
+            <div class="google-logo-3d">
+              <span class="g-blue">G</span><span class="g-red">o</span><span class="g-yellow">o</span><span class="g-blue">g</span><span class="g-green">l</span><span class="g-red">e</span>
+              <span style="font-size: 18px; color: #8ab4f8; vertical-align: super; margin-left: 4px;">3D</span>
+            </div>
+            <form class="ntp-search-box" onsubmit="handleNtpSearch(event)">
+              <span style="color: #9aa0a6;">🔍</span>
+              <input type="text" id="ntp-search-input" placeholder="Пошук у Google або введення URL-адреси..." autofocus />
+              <span style="color: #8ab4f8; font-size: 13px; font-weight: 600;">Enter ↵</span>
+            </form>
+            <div class="shortcuts-grid">
+              <div class="shortcut-card" onclick="navigateTo('https://github.com')">
+                <div class="shortcut-icon">🐙</div>
+                <div class="shortcut-name">GitHub</div>
+              </div>
+              <div class="shortcut-card" onclick="navigateTo('https://youtube.com')">
+                <div class="shortcut-icon">▶️</div>
+                <div class="shortcut-name">YouTube</div>
+              </div>
+              <div class="shortcut-card" onclick="navigateTo('chrome://dino')">
+                <div class="shortcut-icon">🦖</div>
+                <div class="shortcut-name">Chrome Dino</div>
+              </div>
+              <div class="shortcut-card" onclick="navigateTo('chrome://3d-lab')">
+                <div class="shortcut-icon">🧊</div>
+                <div class="shortcut-name">3D Шари</div>
+              </div>
+            </div>
+          </div>
+        `
+      },
+      "https://github.com": {
+        title: "GitHub • Dark Repository",
+        favicon: "🐙",
+        render: () => `
+          <div class="web-page-card">
+            <div class="web-page-header">
+              <div>
+                <h2 style="font-size: 20px; color: #fff; margin-bottom: 4px;">🐙 GitHub Pages — Готовий 3D-проєкт</h2>
+                <p style="font-size: 13px; color: #9aa0a6;">Репозиторій: chrome-3d-dark-simulator / index.html</p>
+              </div>
+              <span class="badge-pill">● Public • HTML5 + CSS 3D</span>
+            </div>
+            <p style="font-size: 14px; line-height: 1.6; color: #d2d6dc; margin-bottom: 16px;">
+              Цей симулятор створений як єдиний самодостатній HTML-файл без зовнішніх залежностей. Ви можете завантажити його на GitHub і миттєво опублікувати через <strong>GitHub Pages</strong>.
+            </p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+              <div style="background: #141519; padding: 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06);">
+                <div style="color: #8ab4f8; font-weight: 600; font-size: 13px;">✨ 3D-ефект вкладок</div>
+                <div style="color: #9aa0a6; font-size: 12px; margin-top: 4px;">Наведіть курсор на будь-яку вкладку зверху: вона повертається під кутом, збільшується та підсвічується.</div>
+              </div>
+              <div style="background: #141519; padding: 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06);">
+                <div style="color: #81c995; font-weight: 600; font-size: 13px;">🎨 Темна палітра Chrome</div>
+                <div style="color: #9aa0a6; font-size: 12px; margin-top: 4px;">Використано фірмові графітові тони (#141519, #1e2026) та неоново-блакитні акценти (#8ab4f8).</div>
+              </div>
+            </div>
+          </div>
+        `
+      },
+      "https://youtube.com": {
+        title: "YouTube • Dark Cinema 3D",
+        favicon: "▶️",
+        render: () => `
+          <div class="web-page-card">
+            <div class="web-page-header">
+              <div>
+                <h2 style="font-size: 20px; color: #fff; margin-bottom: 4px;">▶️ YouTube 3D Theater</h2>
+                <p style="font-size: 13px; color: #9aa0a6;">Рекомендовані відео в темному режимі</p>
+              </div>
+              <span class="badge-pill" style="color: #f28b82; border-color: rgba(242,139,130,0.4); background: rgba(242,139,130,0.12);">● LIVE 4K HDR</span>
+            </div>
+            <div style="background: linear-gradient(135deg, #101218 0%, #1c2230 100%); border-radius: 12px; height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid rgba(138,180,248,0.2); margin-bottom: 14px;">
+              <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(242,139,130,0.9); color: #111; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 0 25px rgba(242,139,130,0.5);">▶</div>
+              <div style="margin-top: 12px; font-weight: 600; font-size: 14px;">Огляд архітектури CSS 3D Transform у сучасних браузерах</div>
+              <div style="font-size: 12px; color: #9aa0a6; margin-top: 4px;">128 тис. переглядів • Chrome Developers UA</div>
+            </div>
+          </div>
+        `
+      },
+      "chrome://dino": {
+        title: "Динозаврик Chrome 3D",
+        favicon: "🦖",
+        render: () => `
+          <div class="web-page-card">
+            <div class="web-page-header">
+              <div>
+                <h2 style="font-size: 20px; color: #fff; margin-bottom: 4px;">🦖 Chrome Dino — Нічний забіг</h2>
+                <p style="font-size: 13px; color: #9aa0a6;">Натисніть <strong>Пробіл</strong> або клікніть по полю, щоб стрибати!</p>
+              </div>
+              <span class="badge-pill" id="dino-score-badge">Рахунок: 0</span>
+            </div>
+            <div class="dino-arena" id="dino-arena" onclick="jumpDino()">
+              <div class="dino-ground"></div>
+              <div class="dino-player" id="dino-player">🦖</div>
+              <div class="dino-cactus" id="dino-cactus">🌵</div>
+              <div id="dino-status" style="position: absolute; top: 14px; left: 16px; font-size: 12px; color: #8ab4f8;">Клікніть для старту забігу</div>
+            </div>
+          </div>
+        `
+      },
+      "chrome://3d-lab": {
+        title: "Лабораторія 3D-шарів",
+        favicon: "🧊",
+        render: () => `
+          <div class="web-page-card">
+            <div class="web-page-header">
+              <div>
+                <h2 style="font-size: 20px; color: #fff; margin-bottom: 4px;">🧊 Інспектор 3D-шарів браузера</h2>
+                <p style="font-size: 13px; color: #9aa0a6;">Візуалізація глибини елементів по осі Z (translateZ)</p>
+              </div>
+              <span class="badge-pill">preserve-3d ACTIVE</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13px;">
+              <div style="display: flex; justify-content: space-between; padding: 10px 14px; background: #141519; border-radius: 8px; border-left: 3px solid #8ab4f8;">
+                <span>1. Активна / наведена вкладка (Hover)</span>
+                <strong style="color: #8ab4f8;">translateZ(34px) • rotateX(14deg) • rotateY(±12deg) • scale(1.09)</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 10px 14px; background: #141519; border-radius: 8px; border-left: 3px solid #81c995;">
+                <span>2. Панель навігації та Omnibox</span>
+                <strong style="color: #81c995;">translateZ(24px)</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 10px 14px; background: #141519; border-radius: 8px; border-left: 3px solid #fdd663;">
+                <span>3. Панель вкладок та закладок</span>
+                <strong style="color: #fdd663;">translateZ(16px) — 18px</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 10px 14px; background: #141519; border-radius: 8px; border-left: 3px solid #f28b82;">
+                <span>4. Задня стінка корпусу вікна</span>
+                <strong style="color: #f28b82;">translateZ(-22px)</strong>
+              </div>
+            </div>
+          </div>
+        `
+      }
+    };
+
+    // Стан вкладок браузера
+    let tabs = [
+      { id: 1, url: "chrome://newtab", history: ["chrome://newtab"], historyIndex: 0 },
+      { id: 2, url: "https://github.com", history: ["https://github.com"], historyIndex: 0 },
+      { id: 3, url: "chrome://3d-lab", history: ["chrome://3d-lab"], historyIndex: 0 },
+      { id: 4, url: "chrome://dino", history: ["chrome://dino"], historyIndex: 0 }
+    ];
+    let activeTabId = 1;
+    let nextTabCounter = 5;
+    let savedBookmarks = new Set(["chrome://newtab", "https://github.com", "https://youtube.com", "chrome://dino", "chrome://3d-lab"]);
+
+    // DOM-елементи
+    const tabsListEl = document.getElementById("tabs-list");
+    const omniboxInput = document.getElementById("omnibox-input");
+    const viewportEl = document.getElementById("chrome-viewport");
+    const btnBack = document.getElementById("btn-back");
+    const btnForward = document.getElementById("btn-forward");
+    const bookmarkStar = document.getElementById("bookmark-star");
+
+    /**
+     * =========================================================================
+     * 2. РЕНДЕРИНГ ВКЛАДОК ТА СТОРІНОК
+     * =========================================================================
+     */
+    function getPageMeta(url) {
+      if (PAGE_CATALOG[url]) return PAGE_CATALOG[url];
+      // Динамічна сторінка пошуку Google для будь-якого запиту
+      const cleanQuery = url.replace(/^https?:\/\//, "");
+      return {
+        title: `${cleanQuery} — Пошук Google`,
+        favicon: "🔍",
+        render: () => `
+          <div class="web-page-card">
+            <div class="web-page-header">
+              <div>
+                <h2 style="font-size: 19px; color: #fff; margin-bottom: 4px;">🔍 Результати пошуку: «${escapeHtml(cleanQuery)}»</h2>
+                <p style="font-size: 12.5px; color: #9aa0a6;">Приблизно 1 420 000 результатів (0,18 сек.) • Темний режим Google</p>
+              </div>
+              <span class="badge-pill">Google Search 3D</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              <div style="padding: 12px; background: #141519; border-radius: 10px;">
+                <div style="font-size: 12px; color: #81c995;">https://uk.wikipedia.org/wiki/${encodeURIComponent(cleanQuery)}</div>
+                <div style="font-size: 16px; color: #8ab4f8; font-weight: 600; margin: 3px 0; cursor: pointer;" onclick="navigateTo('chrome://3d-lab')">${escapeHtml(cleanQuery)} — Огляд та 3D-візуалізація</div>
+                <div style="font-size: 13px; color: #bdc1c6;">Інтерактивна інформація за вашим запитом у тривимірному середовищі браузера Google Chrome Dark Edition.</div>
+              </div>
+              <div style="padding: 12px; background: #141519; border-radius: 10px;">
+                <div style="font-size: 12px; color: #81c995;">https://github.com/explore</div>
+                <div style="font-size: 16px; color: #8ab4f8; font-weight: 600; margin: 3px 0; cursor: pointer;" onclick="navigateTo('https://github.com')">Відкрити репозиторії GitHub за темою «${escapeHtml(cleanQuery)}»</div>
+                <div style="font-size: 13px; color: #bdc1c6;">Приклади коду, веб-інтерфейси та CSS 3D-анімації для публікації на GitHub Pages.</div>
+              </div>
+            </div>
+          </div>
+        `
+      };
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, (m) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[m]));
+    }
+
+    function renderBrowser() {
+      const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
+      if (!activeTab) return;
+      activeTabId = activeTab.id;
+
+      // Оновлюємо список вкладок
+      tabsListEl.innerHTML = "";
+      tabs.forEach(tab => {
+        const meta = getPageMeta(tab.url);
+        const tabEl = document.createElement("div");
+        tabEl.className = `chrome-tab ${tab.id === activeTabId ? "active" : ""}`;
+        tabEl.innerHTML = `
+          <span class="tab-favicon">${meta.favicon}</span>
+          <span class="tab-title">${escapeHtml(meta.title)}</span>
+          <button class="tab-close" title="Закрити вкладку">✕</button>
+        `;
+
+        tabEl.addEventListener("click", (e) => {
+          if (e.target.classList.contains("tab-close")) {
+            closeTab(tab.id);
+          } else {
+            activeTabId = tab.id;
+            renderBrowser();
+          }
+        });
+
+        tabsListEl.appendChild(tabEl);
+      });
+
+      // Оновлюємо адресний рядок і кнопки навігації
+      omniboxInput.value = activeTab.url === "chrome://newtab" ? "" : activeTab.url;
+      btnBack.disabled = activeTab.historyIndex <= 0;
+      btnForward.disabled = activeTab.historyIndex >= activeTab.history.length - 1;
+
+      if (savedBookmarks.has(activeTab.url)) {
+        bookmarkStar.textContent = "★";
+        bookmarkStar.classList.add("saved");
+      } else {
+        bookmarkStar.textContent = "☆";
+        bookmarkStar.classList.remove("saved");
+      }
+
+      // Рендеримо вміст сторінки
+      stopDinoGame();
+      const pageMeta = getPageMeta(activeTab.url);
+      viewportEl.innerHTML = pageMeta.render();
+
+      if (activeTab.url === "chrome://dino") {
+        startDinoGame();
+      }
+    }
+
+    function navigateTo(rawInput) {
+      let url = rawInput.trim();
+      if (!url) url = "chrome://newtab";
+
+      // Нормалізація популярних адрес
+      const lower = url.toLowerCase();
+      if (lower === "github" || lower === "github.com") url = "https://github.com";
+      else if (lower === "youtube" || lower === "youtube.com") url = "https://youtube.com";
+      else if (lower === "dino" || lower === "динок" || lower === "динозаврик") url = "chrome://dino";
+      else if (lower === "3d" || lower === "шари") url = "chrome://3d-lab";
+
+      const activeTab = tabs.find(t => t.id === activeTabId);
+      if (!activeTab) return;
+
+      activeTab.history = activeTab.history.slice(0, activeTab.historyIndex + 1);
+      activeTab.history.push(url);
+      activeTab.historyIndex = activeTab.history.length - 1;
+      activeTab.url = url;
+      renderBrowser();
+    }
+
+    function handleNtpSearch(e) {
+      e.preventDefault();
+      const val = document.getElementById("ntp-search-input").value;
+      navigateTo(val);
+    }
+
+    function createNewTab(url = "chrome://newtab") {
+      const newTab = {
+        id: nextTabCounter++,
+        url,
+        history: [url],
+        historyIndex: 0
+      };
+      tabs.push(newTab);
+      activeTabId = newTab.id;
+      renderBrowser();
+    }
+
+    function closeTab(id) {
+      if (tabs.length === 1) {
+        navigateTo("chrome://newtab");
+        return;
+      }
+      const idx = tabs.findIndex(t => t.id === id);
+      tabs = tabs.filter(t => t.id !== id);
+      if (activeTabId === id) {
+        const nextIdx = Math.max(0, idx - 1);
+        activeTabId = tabs[nextIdx].id;
+      }
+      renderBrowser();
+    }
+
+    // Події навігації
+    document.getElementById("new-tab-btn").addEventListener("click", () => createNewTab());
+    omniboxInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        navigateTo(omniboxInput.value);
+        omniboxInput.blur();
+      }
+    });
+
+    btnBack.addEventListener("click", () => {
+      const tab = tabs.find(t => t.id === activeTabId);
+      if (tab && tab.historyIndex > 0) {
+        tab.historyIndex--;
+        tab.url = tab.history[tab.historyIndex];
+        renderBrowser();
+      }
+    });
+
+    btnForward.addEventListener("click", () => {
+      const tab = tabs.find(t => t.id === activeTabId);
+      if (tab && tab.historyIndex < tab.history.length - 1) {
+        tab.historyIndex++;
+        tab.url = tab.history[tab.historyIndex];
+        renderBrowser();
+      }
+    });
+
+    document.getElementById("btn-reload").addEventListener("click", () => {
+      viewportEl.style.opacity = "0.4";
+      setTimeout(() => {
+        viewportEl.style.opacity = "1";
+        renderBrowser();
+      }, 140);
+    });
+
+    document.getElementById("btn-home").addEventListener("click", () => navigateTo("chrome://newtab"));
+
+    bookmarkStar.addEventListener("click", () => {
+      const tab = tabs.find(t => t.id === activeTabId);
+      if (!tab) return;
+      if (savedBookmarks.has(tab.url)) {
+        savedBookmarks.delete(tab.url);
+      } else {
+        savedBookmarks.add(tab.url);
+      }
+      renderBrowser();
+    });
+
+    document.querySelectorAll(".bm-item").forEach(btn => {
+      btn.addEventListener("click", () => navigateTo(btn.dataset.url));
+    });
+
+    /**
+     * =========================================================================
+     * 3. КЕРУВАННЯ 3D-ПЕРСПЕКТИВОЮ ТА ОБЕРТАННЯМ ВІКНА МИШЕЮ
+     * =========================================================================
+     */
+    const chromeWindow = document.getElementById("chrome-window");
+    const scene3d = document.getElementById("scene-3d");
+    const toggleTiltBtn = document.getElementById("toggle-tilt-btn");
+
+    let currentRotX = 6;
+    let currentRotY = -4;
+    let currentScale = 1;
+    let autoMouseTilt = true;
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+
+    function applyWindowTransform() {
+      chromeWindow.style.transform = `rotateX(${currentRotX.toFixed(2)}deg) rotateY(${currentRotY.toFixed(2)}deg) scale(${currentScale})`;
+    }
+
+    // Пресети камери
+    const CAMERA_PRESETS = {
+      default: { rx: 6, ry: -4, sc: 1 },
+      isometric: { rx: 16, ry: -18, sc: 0.96 },
+      deep: { rx: 22, ry: 12, sc: 0.95 },
+      flat: { rx: 0, ry: 0, sc: 1 }
+    };
+
+    document.querySelectorAll(".cam-btn[data-preset]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".cam-btn[data-preset]").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        const p = CAMERA_PRESETS[btn.dataset.preset];
+        currentRotX = p.rx;
+        currentRotY = p.ry;
+        currentScale = p.sc;
+        applyWindowTransform();
+      });
+    });
+
+    toggleTiltBtn.addEventListener("click", () => {
+      autoMouseTilt = !autoMouseTilt;
+      toggleTiltBtn.textContent = `Вільне обертання мишею: ${autoMouseTilt ? "УВІМК" : "ВИМК"}`;
+      toggleTiltBtn.classList.toggle("active", autoMouseTilt);
+    });
+
+    // Плавне реагування 3D-вікна на рух курсора або перетягування
+    scene3d.addEventListener("mousemove", (e) => {
+      if (isDragging) {
+        const dx = e.clientX - dragStartX;
+        const dy = e.clientY - dragStartY;
+        currentRotY = Math.max(-35, Math.min(35, currentRotY + dx * 0.25));
+        currentRotX = Math.max(-25, Math.min(35, currentRotX - dy * 0.25));
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        applyWindowTransform();
+        return;
+      }
+
+      if (!autoMouseTilt) return;
+      const rect = scene3d.getBoundingClientRect();
+      const normX = (e.clientX - rect.left) / rect.width - 0.5;
+      const normY = (e.clientY - rect.top) / rect.height - 0.5;
+      currentRotY = normX * 16;
+      currentRotX = -normY * 14 + 4;
+      applyWindowTransform();
+    });
+
+    chromeWindow.addEventListener("mousedown", (e) => {
+      if (e.target.closest("button, input, .chrome-tab, .shortcut-card, .dino-arena")) return;
+      isDragging = true;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      chromeWindow.classList.add("dragging");
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (isDragging) {
+        isDragging = false;
+        chromeWindow.classList.remove("dragging");
+      }
+    });
+
+    document.getElementById("zoom-out-btn").addEventListener("click", () => {
+      currentScale = Math.max(0.82, +(currentScale - 0.06).toFixed(2));
+      applyWindowTransform();
+    });
+
+    document.getElementById("zoom-in-btn").addEventListener("click", () => {
+      currentScale = Math.min(1.06, +(currentScale + 0.06).toFixed(2));
+      applyWindowTransform();
+    });
+
+    document.getElementById("reset-session-btn").addEventListener("click", () => {
+      currentRotX = 6;
+      currentRotY = -4;
+      currentScale = 1;
+      applyWindowTransform();
+    });
+
+    /**
+     * =========================================================================
+     * 4. МІНІ-ГРА ДИНОЗАВРИК CHROME (chrome://dino)
+     * =========================================================================
+     */
+    let dinoLoopId = null;
+    let dinoY = 0;
+    let dinoVelocity = 0;
+    let cactusX = 620;
+    let dinoScore = 0;
+    let dinoGameOver = false;
+
+    function startDinoGame() {
+      dinoY = 0;
+      dinoVelocity = 0;
+      cactusX = 620;
+      dinoScore = 0;
+      dinoGameOver = false;
+
+      const loop = () => {
+        const player = document.getElementById("dino-player");
+        const cactus = document.getElementById("dino-cactus");
+        const badge = document.getElementById("dino-score-badge");
+        const status = document.getElementById("dino-status");
+        if (!player || !cactus) return;
+
+        if (!dinoGameOver) {
+          dinoY += dinoVelocity;
+          if (dinoY > 0) {
+            dinoVelocity -= 0.72;
+          } else {
+            dinoY = 0;
+            dinoVelocity = 0;
+          }
+
+          cactusX -= 5.5;
+          if (cactusX < -30) {
+            cactusX = 640;
+            dinoScore += 10;
+            if (badge) badge.textContent = `Рахунок: ${dinoScore}`;
+          }
+
+          player.style.transform = `translateY(${-dinoY}px)`;
+          cactus.style.left = `${cactusX}px`;
+          cactus.style.right = "auto";
+
+          // Перевірка зіткнення
+          if (cactusX > 32 && cactusX < 72 && dinoY < 26) {
+            dinoGameOver = true;
+            if (status) status.textContent = "💥 Зіткнення! Клікніть по арені, щоб почати заново.";
+          }
+        }
+        dinoLoopId = requestAnimationFrame(loop);
+      };
+      dinoLoopId = requestAnimationFrame(loop);
+    }
+
+    function stopDinoGame() {
+      if (dinoLoopId) {
+        cancelAnimationFrame(dinoLoopId);
+        dinoLoopId = null;
+      }
+    }
+
+    function jumpDino() {
+      if (dinoGameOver) {
+        startDinoGame();
+        return;
+      }
+      if (dinoY === 0) {
+        dinoVelocity = 12.5;
+      }
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (e.code === "Space" && document.activeElement !== omniboxInput) {
+        const activeTab = tabs.find(t => t.id === activeTabId);
+        if (activeTab && activeTab.url === "chrome://dino") {
+          e.preventDefault();
+          jumpDino();
+        }
+      }
+    });
+
+    /**
+     * =========================================================================
+     * 5. ЗИМОВИЙ СНІГОПАД, МЕКАННЯ ЧОРТИКА ТА КИДАННЯ СНІЖОК
+     * =========================================================================
+     */
+    const snowCanvas = document.getElementById("snow-canvas");
+    const snowCtx = snowCanvas.getContext("2d");
+    let snowflakes = [];
+
+    function resizeSnowCanvas() {
+      snowCanvas.width = window.innerWidth;
+      snowCanvas.height = window.innerHeight;
+    }
+
+    function initSnowflakes() {
+      resizeSnowCanvas();
+      const count = Math.min(150, Math.floor((window.innerWidth * window.innerHeight) / 9000));
+      snowflakes = Array.from({ length: count }, () => ({
+        x: Math.random() * snowCanvas.width,
+        y: Math.random() * snowCanvas.height,
+        r: Math.random() * 3.2 + 1.1,
+        speedY: Math.random() * 1.3 + 0.5,
+        speedX: (Math.random() - 0.5) * 0.6,
+        alpha: Math.random() * 0.65 + 0.25,
+        wobble: Math.random() * Math.PI * 2
+      }));
+    }
+
+    function animateSnow() {
+      snowCtx.clearRect(0, 0, snowCanvas.width, snowCanvas.height);
+      for (const flake of snowflakes) {
+        flake.wobble += 0.02;
+        flake.y += flake.speedY;
+        flake.x += flake.speedX + Math.sin(flake.wobble) * 0.35;
+
+        if (flake.y > snowCanvas.height + 6) {
+          flake.y = -6;
+          flake.x = Math.random() * snowCanvas.width;
+        }
+        if (flake.x > snowCanvas.width + 6) flake.x = -6;
+        if (flake.x < -6) flake.x = snowCanvas.width + 6;
+
+        snowCtx.beginPath();
+        snowCtx.arc(flake.x, flake.y, flake.r, 0, Math.PI * 2);
+        snowCtx.fillStyle = `rgba(240, 248, 255, ${flake.alpha})`;
+        snowCtx.fill();
+      }
+      requestAnimationFrame(animateSnow);
+    }
+
+    window.addEventListener("resize", resizeSnowCanvas);
+    initSnowflakes();
+    animateSnow();
+
+    // Синтезатор смішного козячого мекання чортика ("Ме-е-е!") через Web Audio API
+    let audioCtx = null;
+    function playDevilGoatBleat() {
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        if (!audioCtx) audioCtx = new AudioContextClass();
+        if (audioCtx.state === "suspended") audioCtx.resume();
+
+        const now = audioCtx.currentTime;
+        const duration = 0.85;
+
+        // Основний голос (пилкоподібна хвиля) + вібрато (LFO) для ефекту "Ме-е-е"
+        const osc = audioCtx.createOscillator();
+        const lfo = audioCtx.createOscillator();
+        const lfoGain = audioCtx.createGain();
+        const filter = audioCtx.createBiquadFilter();
+        const masterGain = audioCtx.createGain();
+
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(340, now);
+        osc.frequency.exponentialRampToValueAtTime(285, now + 0.35);
+        osc.frequency.exponentialRampToValueAtTime(235, now + duration);
+
+        // Швидке тремтіння голосу (14 Гц — характерне козяче бекання)
+        lfo.type = "sine";
+        lfo.frequency.setValueAtTime(14.5, now);
+        lfoGain.gain.setValueAtTime(26, now);
+
+        lfo.connect(lfoGain);
+        lfoGain.connect(osc.frequency);
+
+        // Формантний фільтр для носового тембру
+        filter.type = "bandpass";
+        filter.frequency.setValueAtTime(920, now);
+        filter.Q.setValueAtTime(2.6, now);
+
+        masterGain.gain.setValueAtTime(0.001, now);
+        masterGain.gain.linearRampToValueAtTime(0.24, now + 0.06);
+        masterGain.gain.setValueAtTime(0.21, now + 0.55);
+        masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(filter);
+        filter.connect(masterGain);
+        masterGain.connect(audioCtx.destination);
+
+        osc.start(now);
+        lfo.start(now);
+        osc.stop(now + duration + 0.02);
+        lfo.stop(now + duration + 0.02);
+      } catch (err) {
+        // Ігноруємо обмеження автозапуску аудіо, якщо є
+      }
+    }
+
+    // Логіка кидання сніжок та збивання чортика з місяця
+    const nightSkyActor = document.getElementById("night-sky-actor");
+    const devilEntity = document.getElementById("devil-entity");
+    const bleatBubble = document.getElementById("bleat-bubble");
+    const devilHitsCountEl = document.getElementById("devil-hits-count");
+
+    let devilIsFalling = false;
+    let devilHitsCount = 0;
+
+    function createSnowSplash(x, y) {
+      const splash = document.createElement("div");
+      splash.className = "snow-splash";
+      splash.style.left = `${x}px`;
+      splash.style.top = `${y}px`;
+      document.body.appendChild(splash);
+      setTimeout(() => splash.remove(), 480);
+    }
+
+    function knockDevilOffMoon() {
+      if (devilIsFalling) return;
+      devilIsFalling = true;
+      devilHitsCount += 1;
+      devilHitsCountEl.textContent = String(devilHitsCount);
+
+      playDevilGoatBleat();
+      bleatBubble.classList.add("visible");
+      devilEntity.classList.add("falling");
+
+      // Повертаємо чортика назад на місяць через 2.8 секунди
+      setTimeout(() => {
+        bleatBubble.classList.remove("visible");
+        devilEntity.classList.remove("falling");
+        devilIsFalling = false;
+      }, 2800);
+    }
+
+    function throwSnowballAt(targetX, targetY, hitDevilDirectly = false) {
+      const startX = window.innerWidth * 0.5;
+      const startY = window.innerHeight - 24;
+
+      const ball = document.createElement("div");
+      ball.className = "snowball-projectile";
+      ball.style.left = `${startX}px`;
+      ball.style.top = `${startY}px`;
+      document.body.appendChild(ball);
+
+      const duration = 360;
+      const startTime = performance.now();
+
+      function step(now) {
+        const t = Math.min(1, (now - startTime) / duration);
+        // Параболічна дуга польоту сніжки + зменшення в перспективі 3D
+        const curX = startX + (targetX - startX) * t;
+        const arcLift = Math.sin(t * Math.PI) * 110;
+        const curY = startY + (targetY - startY) * t - arcLift;
+        const scale = 1.25 - t * 0.65;
+
+        ball.style.left = `${curX}px`;
+        ball.style.top = `${curY}px`;
+        ball.style.transform = `translate(-50%, -50%) scale(${scale.toFixed(2)})`;
+
+        if (t < 1) {
+          requestAnimationFrame(step);
+        } else {
+          ball.remove();
+          createSnowSplash(targetX, targetY);
+
+          // Перевіряємо влучання в область місяця/чортика
+          const actorRect = nightSkyActor.getBoundingClientRect();
+          const inHitbox =
+            hitDevilDirectly ||
+            (targetX >= actorRect.left - 15 &&
+              targetX <= actorRect.right + 15 &&
+              targetY >= actorRect.top - 15 &&
+              targetY <= actorRect.bottom + 15);
+
+          if (inHitbox) {
+            knockDevilOffMoon();
+          }
+        }
+      }
+
+      requestAnimationFrame(step);
+    }
+
+    // Клік по місяцю або чортику гарантовано запускає сніжку в нього
+    nightSkyActor.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const rect = nightSkyActor.getBoundingClientRect();
+      const hitX = e.clientX || rect.left + rect.width * 0.5;
+      const hitY = e.clientY || rect.top + rect.height * 0.5;
+      throwSnowballAt(hitX, hitY, true);
+    });
+
+    // Клік по порожньому нічному фону також дозволяє жбурляти сніжки по екрану
+    document.addEventListener("click", (e) => {
+      if (e.target.closest(".chrome-window-3d, .camera-hud, .night-sky-actor")) return;
+      throwSnowballAt(e.clientX, e.clientY, false);
+    });
+
+    // Початковий запуск
+    renderBrowser();
+  </script>
+</body>
+</html>
